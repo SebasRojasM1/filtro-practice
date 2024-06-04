@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateAuthorDto, UpdateAuthorDto } from '../dto';
 import { AuthorEntity } from '../entities/author.entity';
 import { ILike, Repository } from 'typeorm';
@@ -50,10 +50,24 @@ export class AuthorService {
 
   async updateAuthor(id: number, updateAuthorDto: UpdateAuthorDto): Promise<AuthorEntity> {
     await this.authorsRepository.update(id, updateAuthorDto);
-    return this.findOne(id);
+    
+    const updateAuthor = await this.authorsRepository.findOne(
+      { where: { id } }
+    );
+    
+    if (!updateAuthor) {
+      throw new HttpException(`The author with ID ${id} not found`, HttpStatus.NOT_FOUND);
+    }
+
+    return updateAuthor;
   }
 
-  async deleteAuthor(id: number): Promise<void> {
-    await this.authorsRepository.softDelete(id);
+  async deleteAuthor(id: number) {
+    const author = await this.authorsRepository.findOne({ where: { id } });
+    if (!author) {
+      throw new NotFoundException(`Author with ID ${id} not found`);
+    }
+
+    return await this.authorsRepository.softDelete(id);
   }
 }

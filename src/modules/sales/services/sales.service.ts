@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateSaleDto, UpdateSaleDto } from '../dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
@@ -50,17 +50,29 @@ export class SalesService {
     /*http://localhost:3000/sales/search?search=Sebasrojasm1@gmail.com&sortBy=saleDate&order=ASC&page=1&limit=10 */
   }
 
-  findAllSales(): Promise<SaleEntity[]> {
-    return this.salesRepository.find(
+  async findAllSales(): Promise<SaleEntity[]> {
+    const sales =  await this.salesRepository.find(
       { relations: ['book'] }
     );
+
+    if (!sales || sales.length === 0) {
+      throw new HttpException('Sales not found. Try again.', HttpStatus.NOT_FOUND);
+    }
+
+    return sales
   }
 
-  async findOne(id: number): Promise<SaleEntity> {
-    return this.salesRepository.findOne(
+  async findOne(id: number) {
+    const sale = this.salesRepository.findOne(
       { where: { id }, 
       relations: ['book'] }
     );
+
+    if (!sale) {
+      throw new NotFoundException(`Sale with ID ${id} not found`);
+    }
+
+    return sale
   }
 
 
@@ -79,7 +91,13 @@ export class SalesService {
   }
 
 
-  async deleteSale(id: number): Promise<void> {
-    await this.salesRepository.softDelete(id);
+  async deleteSale(id: number) {
+    const sale = await this.salesRepository.findOne({ where: { id } });
+    
+    if (!sale) {
+      throw new NotFoundException(`Sale with ID ${id} not found`);
+    }
+
+    return await this.salesRepository.softDelete(id);
   }
 }

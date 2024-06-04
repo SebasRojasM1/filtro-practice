@@ -9,7 +9,7 @@ import { AuthorService } from './modules/author/services/author.service';
 import { SaleEntity } from './modules/sales/entities/sale.entity';
 import { BookEntity } from './modules/books/entities/book.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
   imports: [
@@ -17,19 +17,25 @@ import { ConfigModule } from '@nestjs/config';
       envFilePath: '.env',
       isGlobal: true,
     }),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DB_HOST,
-      port: +process.env.DB_PORT,
-      username: process.env.DB_USER,
-      password: process.env.DB_PASS,
-      database: process.env.DB_NAME,
-      autoLoadEntities: true,
-      synchronize: true,
-      entities: [AuthorEntity, BookEntity, SaleEntity],
-      extra: {
-        ssl: true,
-      },
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get<string>('DB_HOST'),
+        port: +configService.get<number>('DB_PORT'),
+        username: configService.get<string>('DB_USER'),
+        password: configService.get<string>('DB_PASS'),
+        database: configService.get<string>('DB_NAME'),
+        entities: [AuthorEntity, BookEntity, SaleEntity],
+        autoLoadEntities: true,
+        synchronize: false, // Disable synchronize for production
+        migrations: [__dirname + '/migrations/*{.ts,.js}'],
+        cli: {
+          migrationsDir: 'src/migrations',
+        },
+        ssl: { rejectUnauthorized: false } // Add this line
+      }),
+      inject: [ConfigService],
     }),
     TypeOrmModule.forFeature([AuthorEntity, BookEntity, SaleEntity]), // Register your entities
   ],
